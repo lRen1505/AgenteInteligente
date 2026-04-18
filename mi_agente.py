@@ -47,14 +47,17 @@ class MiAgente(Agente):
 
     def __init__(self):
         super().__init__(nombre="Mi Agente")
-        # Puedes agregar atributos aquí si los necesitas.
-        # Ejemplo:
-        #   self.pasos = 0
-        #   self.memoria = {}
+        self.visitadas = {}
+        self.ultima_posicion = None
 
     def al_iniciar(self):
-        """Se llama una vez al iniciar la simulación. Opcional."""
+        self.visitadas = {}
+        self.ultima_posicion = None
         pass
+
+    def siguiente_posicion(self,posicion,accion):
+        dr,dc = self.DELTAS[accion]
+        return(posicion[0]+dr,posicion[1]+dc)
 
     def decidir(self, percepcion):
         
@@ -67,26 +70,56 @@ class MiAgente(Agente):
         Retorna:
             'arriba', 'abajo', 'izquierda' o 'derecha'
         """
-        # ╔══════════════════════════════════════╗
-        # ║   ESCRIBE TU LÓGICA AQUÍ             ║
-        # ╚══════════════════════════════════════╝
+        posicion = percepcion["posicion"]
+        vert, horiz = percepcion['direccion_meta']
+        
+        #Registramos la visita de la posicion actual
+        if posicion not in self.visitadas:
+            self.visitadas[posicion] = 0
+            self.visitadas[posicion] += 1
+   
+        #Si la meta está al lado ir directamente  
+        for accion in self.ACCIONES:
+            if percepcion[accion] == "meta":
+                self.ultima_posicion = posicion
+                return accion
+            
+        #Obtener movimientos válidos
+        movimientos_validos = []
+        for accion in self.ACCIONES:
+            if percepcion[accion] in ("libre", "meta"):
+                movimientos_validos.append(accion)
 
-        # Ejemplo básico (bórralo y escribe tu propia lógica):
-        #
-        # vert, horiz = percepcion['direccion_meta']
-        #
-        # if percepcion[vert] == 'libre' or percepcion[vert] == 'meta':
-        #     return vert
-        # if percepcion[horiz] == 'libre' or percepcion[horiz] == 'meta':
-        #     return horiz
-        #
-        # return 'abajo'
-        print('Hola decidir')
-        for direccion in self.ACCIONES:
-            celda = percepcion[direccion]
-            if celda == 'meta':
-                return direccion
-            if celda == 'libre':
-                return direccion
 
-        return 'abajo'  # ← Reemplazar con tu lógica
+        #Priorizar direcciones hacia la meta
+        prioridades = []
+        if vert != "ninguna":
+            prioridades.append(vert)
+        if horiz != "ninguna":
+            prioridades.append(horiz)
+
+        for accion in prioridades:
+            if accion in movimientos_validos:
+                nueva_pos = self.siguiente_posicion(posicion, accion)
+        
+        #Elegir la opción menos visitada
+        mejor_accion = None
+        menor_visitas = float("inf")
+
+        for accion in movimientos_validos:
+            nueva_pos = self.siguiente_posicion(posicion, accion)
+            visitas = self.visitadas.get(nueva_pos, 0)
+
+            if nueva_pos == self.ultima_posicion:
+                continue
+
+            if visitas < menor_visitas:
+                menor_visitas = visitas
+                mejor_accion = accion
+        
+        # 5. Si no hay otra opción, retroceder
+        if mejor_accion is None and movimientos_validos:
+            mejor_accion = movimientos_validos[0]
+
+        self.ultima_posicion = posicion
+        return mejor_accion if mejor_accion else "abajo"
