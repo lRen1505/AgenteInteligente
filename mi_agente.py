@@ -53,7 +53,7 @@ class MiAgente(Agente):
     def al_iniciar(self):
         self.visitadas = {}
         self.ultima_posicion = None
-        pass
+        
 
     def siguiente_posicion(self,posicion,accion):
         dr,dc = self.DELTAS[accion]
@@ -73,53 +73,50 @@ class MiAgente(Agente):
         posicion = percepcion["posicion"]
         vert, horiz = percepcion['direccion_meta']
         
-        #Registramos la visita de la posicion actual
-        if posicion not in self.visitadas:
-            self.visitadas[posicion] = 0
-            self.visitadas[posicion] += 1
-   
-        #Si la meta está al lado ir directamente  
+        # Registrar visita actual
+        self.visitadas[posicion] = self.visitadas.get(posicion, 0) + 1
+
+        # 1. Si la meta está al lado, ir directo
         for accion in self.ACCIONES:
             if percepcion[accion] == "meta":
                 self.ultima_posicion = posicion
                 return accion
-            
-        #Obtener movimientos válidos
-        movimientos_validos = []
-        for accion in self.ACCIONES:
-            if percepcion[accion] in ("libre", "meta"):
-                movimientos_validos.append(accion)
 
+        # 2. Movimientos válidos
+        movimientos_validos = [
+            accion for accion in self.ACCIONES
+            if percepcion[accion] in ("libre", "meta")
+        ]
 
-        #Priorizar direcciones hacia la meta
-        prioridades = []
-        if vert != "ninguna":
-            prioridades.append(vert)
-        if horiz != "ninguna":
-            prioridades.append(horiz)
+        if not movimientos_validos:
+            return "abajo"
 
-        for accion in prioridades:
-            if accion in movimientos_validos:
-                nueva_pos = self.siguiente_posicion(posicion, accion)
-        
-        #Elegir la opción menos visitada
+        # 3. Evaluar cada acción
         mejor_accion = None
-        menor_visitas = float("inf")
+        mejor_puntaje = float("-inf")
 
         for accion in movimientos_validos:
             nueva_pos = self.siguiente_posicion(posicion, accion)
             visitas = self.visitadas.get(nueva_pos, 0)
 
-            if nueva_pos == self.ultima_posicion:
-                continue
+            puntaje = 0
 
-            if visitas < menor_visitas:
-                menor_visitas = visitas
+            # Priorizar dirección hacia la meta
+            if accion == vert:
+                puntaje += 3
+            if accion == horiz:
+                puntaje += 3
+
+            # Preferir celdas menos visitadas
+            puntaje -= visitas * 2
+
+            # Penalizar volver inmediatamente atrás
+            if nueva_pos == self.ultima_posicion:
+                puntaje -= 4
+
+            if puntaje > mejor_puntaje:
+                mejor_puntaje = puntaje
                 mejor_accion = accion
-        
-        # 5. Si no hay otra opción, retroceder
-        if mejor_accion is None and movimientos_validos:
-            mejor_accion = movimientos_validos[0]
 
         self.ultima_posicion = posicion
         return mejor_accion if mejor_accion else "abajo"
